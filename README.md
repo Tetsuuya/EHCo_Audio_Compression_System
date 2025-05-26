@@ -1,54 +1,22 @@
-# React + TypeScript + Vite
+# EHCo - Audio Compressor with C++
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+An Audio Compressor using Adaptive Huffman with DCT and RLE Algorithms.
 
-Currently, two official plugins are available:
+![{B2E36C75-5DE1-4A31-B84F-85624897DFFE}](https://github.com/user-attachments/assets/03bd09b2-5365-4176-be7a-d773e3151374)
+![image](https://github.com/user-attachments/assets/920dfa97-a66a-4501-8a8a-132df500fea4)
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
 
-## Expanding the ESLint configuration
+## Features
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+- Compresses Wav file
+- Calculates Audio Metrics 
+- Decompresses Audio
+- Can Download outputs
 
-```js
-export default tseslint.config({
-  extends: [
-    // Remove ...tseslint.configs.recommended and replace with this
-    ...tseslint.configs.recommendedTypeChecked,
-    // Alternatively, use this for stricter rules
-    ...tseslint.configs.strictTypeChecked,
-    // Optionally, add this for stylistic rules
-    ...tseslint.configs.stylisticTypeChecked,
-  ],
-  languageOptions: {
-    // other options...
-    parserOptions: {
-      project: ['./tsconfig.node.json', './tsconfig.app.json'],
-      tsconfigRootDir: import.meta.dirname,
-    },
-  },
-})
-```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## Usage
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default tseslint.config({
-  plugins: {
-    // Add the react-x and react-dom plugins
-    'react-x': reactX,
-    'react-dom': reactDom,
-  },
-  rules: {
-    // other rules...
-    // Enable its recommended typescript rules
-    ...reactX.configs['recommended-typescript'].rules,
-    ...reactDom.configs.recommended.rules,
-  },
-})
-```
+1. Upload an Audio File(Compresion/Decompression)
+2. Click the Compress Audio File 
+3. Click the "Calculate" button to compute the integral
+4. Download the outputs
