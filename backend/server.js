@@ -213,7 +213,7 @@ app.post('/api/compress', upload.single('audio'), async (req, res) => {
         mse: metrics.mse,
         snr: metrics.snr,
         psnr: metrics.psnr,
-        thDifference: metrics.thd.output - metrics.thd.input
+        thDifference: Math.abs(metrics.thd.output - metrics.thd.input)
       }
     };
 
@@ -262,51 +262,100 @@ app.post('/api/compress', upload.single('audio'), async (req, res) => {
 });
 
 app.post('/api/decompress', upload.single('compressed'), async (req, res) => {
+  let inputPath = null;
+  let outputPath = null;
+  let tempFiles = [];
+
   try {
     if (!req.file) {
-      return res.status(400).json({ error: 'No file uploaded' });
+      return res.status(400).json({ 
+        success: false,
+        error: 'No file uploaded' 
+      });
     }
 
-    const inputPath = req.file.path;
-    const outputPath = path.join(__dirname, 'uploads', `decompressed-${Date.now()}.wav`);
+    inputPath = req.file.path;
+    outputPath = path.join(__dirname, 'uploads', `decompressed-${Date.now()}.wav`);
     
+    console.log('Starting decompression process...');
+    console.log('Input file:', inputPath);
+    console.log('Output path:', outputPath);
+
     // Copy the uploaded file to compressed.bin
     fs.copyFileSync(inputPath, 'compressed.bin');
+    tempFiles.push('compressed.bin');
 
     // Call the executable for decompression
-    await execPromise(`"${COMPRESSOR_PATH}" -d`);
+    console.log('Running decompression command...');
+    const decompressCmd = `"${COMPRESSOR_PATH}" -d`;
+    console.log('Decompression command:', decompressCmd);
+    const decompressResult = await execPromise(decompressCmd);
+    console.log('Decompression stdout:', decompressResult.stdout);
+    console.log('Decompression stderr:', decompressResult.stderr);
 
     if (!fs.existsSync('output.wav')) {
       throw new Error('Decompression failed: output.wav not created');
     }
 
     // Copy the decompressed file to uploads directory
+    console.log('Copying output.wav to final location...');
     fs.copyFileSync('output.wav', outputPath);
+    tempFiles.push('output.wav');
 
-    // For decompression, we can't calculate metrics since we don't have the original file
-    // Return file information only
-    res.json({
+    const response = {
       success: true,
-      reconstructedFile: {
+      file: {
         name: path.basename(outputPath),
         path: `/uploads/${path.basename(outputPath)}`,
         size: fs.statSync(outputPath).size
       }
-    });
+    };
+
+    console.log('Sending successful response:', response);
+    res.json(response);
 
     // Clean up temporary files
-    fs.unlinkSync(inputPath);
-    if (fs.existsSync('compressed.bin')) {
-      fs.unlinkSync('compressed.bin');
+    console.log('Cleaning up temporary files...');
+    tempFiles.forEach(file => {
+      if (fs.existsSync(file)) {
+        fs.unlinkSync(file);
+      }
+    });
+    if (inputPath && fs.existsSync(inputPath)) {
+      fs.unlinkSync(inputPath);
     }
-    if (fs.existsSync('output.wav')) {
-      fs.unlinkSync('output.wav');
-    }
+
   } catch (error) {
-    console.error('Decompression error:', error);
+    console.error('Decompression error:', {
+      message: error.message,
+      stack: error.stack,
+      stdout: error.stdout,
+      stderr: error.stderr,
+      cmd: error.cmd
+    });
+
+    // Clean up any files that might have been created
+    try {
+      tempFiles.forEach(file => {
+        if (fs.existsSync(file)) {
+          fs.unlinkSync(file);
+        }
+      });
+      if (inputPath && fs.existsSync(inputPath)) {
+        fs.unlinkSync(inputPath);
+      }
+      if (outputPath && fs.existsSync(outputPath)) {
+        fs.unlinkSync(outputPath);
+      }
+    } catch (cleanupError) {
+      console.error('Error during cleanup:', cleanupError);
+    }
+
     res.status(500).json({ 
+      success: false,
       error: 'Decompression failed',
-      details: error.message
+      details: error.message,
+      command: error.cmd || null
     });
   }
 });
