@@ -63,7 +63,7 @@ const Upload: React.FC<UploadProps> = ({
 
           <button
             onClick={onCompress}
-            disabled={!selectedFile || isProcessing || compressionResults}
+            disabled={!selectedFile || isProcessing}
             className="bg-blue-600 text-white text-sm px-4 py-1.5 rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Compress Audio File

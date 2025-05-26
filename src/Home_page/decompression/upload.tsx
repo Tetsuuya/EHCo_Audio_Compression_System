@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import ConnectorImage from '../../assets/images/Connector.png';
 
 interface UploadProps {
@@ -6,7 +6,7 @@ interface UploadProps {
   isProcessing: boolean;
   onFileSelect: (event: React.ChangeEvent<HTMLInputElement>) => void;
   onDecompress: () => void;
-  processedFile?: { name: string } | null;
+  processedFile?: { name: string; path: string; size: number } | null;
   onDownload?: () => void;
 }
 
@@ -18,6 +18,28 @@ const Upload: React.FC<UploadProps> = ({
   processedFile,
   onDownload
 }) => {
+  const [error, setError] = useState<string>('');
+
+  const handleDecompress = async () => {
+    if (!selectedFile) {
+      setError('Please select a file first');
+      return;
+    }
+    setError('');
+    onDecompress();
+  };
+
+  const handleDownload = () => {
+    if (!processedFile) {
+      setError('No decompressed file available');
+      return;
+    }
+    if (onDownload) {
+      setError('');
+      onDownload();
+    }
+  };
+
   return (
     <div className="w-full max-w-2xl mx-auto">
       {/* Upload Section */}
@@ -60,12 +82,18 @@ const Upload: React.FC<UploadProps> = ({
       </div>
 
       <button
-        onClick={onDecompress}
+        onClick={handleDecompress}
         disabled={!selectedFile || isProcessing}
         className="bg-blue-600 text-white text-sm px-4 py-1.5 rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
       >
         Reconstruct Audio File
       </button>
+
+      {error && (
+        <div className="mt-2 text-red-500 text-sm">
+          {error}
+        </div>
+      )}
 
       {/* Connector Image */}
       <div className="flex justify-center my-4">
@@ -87,14 +115,14 @@ const Upload: React.FC<UploadProps> = ({
           <div className="border rounded-md overflow-hidden bg-white">
             <input
               type="text"
-              value={processedFile ? processedFile.name : 'Reconstructed audio...'}
+              value={processedFile?.name || 'Reconstructed audio...'}
               readOnly
               className="w-full px-4 py-2 bg-white text-gray-700 border-none focus:ring-0"
             />
           </div>
           
           <button
-            onClick={onDownload}
+            onClick={handleDownload}
             disabled={!processedFile || isProcessing}
             className="mt-2 bg-blue-600 text-white text-sm px-4 py-1.5 rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >

@@ -12,7 +12,7 @@ interface CompressionResults {
   compressedSize: number;
   compressionRatio: number;
   originalTHD: number;
-  recommendedTHD: number;
+  outputTHD: number;
   thDifference: number;
   mse: number;
   snr: number;
@@ -82,6 +82,7 @@ function HomePage() {
   const [outputMessage, setOutputMessage] = useState<string>('')
   const [isProcessing, setIsProcessing] = useState(false)
   const [processedFile, setProcessedFile] = useState<{ name: string; path: string; size: number } | null>(null)
+  const [decompressedFile, setDecompressedFile] = useState<{ name: string; path: string; size: number } | null>(null)
   const [audioUrl, setAudioUrl] = useState<string | null>(null)
   const [abortController, setAbortController] = useState<AbortController | null>(null)
   const [operationType, setOperationType] = useState<'compress' | 'decompress' | null>(null)
@@ -90,7 +91,7 @@ function HomePage() {
     compressedSize: 0,
     compressionRatio: 0,
     originalTHD: 0,
-    recommendedTHD: 0,
+    outputTHD: 0,
     thDifference: 0,
     mse: 0,
     snr: 0,
@@ -102,13 +103,14 @@ function HomePage() {
     setSelectedFile(null)
     setOutputMessage('')
     setProcessedFile(null)
+    setDecompressedFile(null)
     setAudioUrl(null)
     setCompressionResults({
       originalSize: 0,
       compressedSize: 0,
       compressionRatio: 0,
       originalTHD: 0,
-      recommendedTHD: 0,
+      outputTHD: 0,
       thDifference: 0,
       mse: 0,
       snr: 0,
@@ -128,6 +130,7 @@ function HomePage() {
       setSelectedFile(event.target.files[0])
       setOutputMessage('')
       setProcessedFile(null)
+      setDecompressedFile(null)
       setAudioUrl(null)
     }
   }
@@ -155,6 +158,7 @@ function HomePage() {
     setIsProcessing(true)
     setOutputMessage('Compressing...')
     setProcessedFile(null)
+    setDecompressedFile(null)
     setAudioUrl(null)
 
     const formData = new FormData()
@@ -172,9 +176,39 @@ function HomePage() {
       }
 
       const data = await response.json()
-      setProcessedFile(data.file)
-      setCompressionResults(data.results)
-      setOutputMessage('')
+      console.log('Compression API Response:', data);
+      
+      setProcessedFile(data.compressedFile)
+      setDecompressedFile(data.reconstructedFile)
+      setAudioUrl(`http://localhost:3001${data.reconstructedFile.path}`)
+      
+      // Log metrics before setting state
+      console.log('Setting compression results:', {
+        originalSize: data.results.originalSize,
+        compressedSize: data.results.compressedSize,
+        compressionRatio: data.results.compressionRatio,
+        originalTHD: data.results.originalTHD || 0,
+        outputTHD: data.results.outputTHD || 0,
+        thDifference: data.results.thDifference || 0,
+        mse: data.results.mse || 0,
+        snr: data.results.snr || 0,
+        psnr: data.results.psnr || 0
+      });
+      
+      // Update compression results with the metrics from the server
+      setCompressionResults({
+        originalSize: data.results.originalSize,
+        compressedSize: data.results.compressedSize,
+        compressionRatio: data.results.compressionRatio,
+        originalTHD: data.results.originalTHD || 0,
+        outputTHD: data.results.outputTHD || 0,
+        thDifference: data.results.thDifference || 0,
+        mse: data.results.mse || 0,
+        snr: data.results.snr || 0,
+        psnr: data.results.psnr || 0
+      })
+      
+      setOutputMessage('')  // Clear any error messages on success
     } catch (error: unknown) {
       if (error instanceof Error && error.name === 'AbortError') {
         setOutputMessage('Operation cancelled')
@@ -201,6 +235,7 @@ function HomePage() {
     setIsProcessing(true)
     setOutputMessage('Decompressing...')
     setProcessedFile(null)
+    setDecompressedFile(null)
     setAudioUrl(null)
 
     const formData = new FormData()
@@ -218,9 +253,21 @@ function HomePage() {
       }
 
       const data = await response.json()
-      setProcessedFile(data.file)
-      setAudioUrl(`http://localhost:3001${data.file.path}`)
-      setOutputMessage('Decompression completed successfully')
+      console.log('Decompression API Response:', data);
+      
+      if (data.success && data.file) {
+        const decompressedFileData = {
+          name: data.file.name,
+          path: data.file.path,
+          size: data.file.size
+        }
+        setDecompressedFile(decompressedFileData)
+        setAudioUrl(`http://localhost:3001${data.file.path}`)
+      } else {
+        throw new Error('Invalid response format from server')
+      }
+      
+      setOutputMessage('')  // Clear any error messages on success
     } catch (error: unknown) {
       if (error instanceof Error && error.name === 'AbortError') {
         setOutputMessage('Operation cancelled')
@@ -234,11 +281,11 @@ function HomePage() {
     }
   }
 
-  const handleDownload = () => {
-    if (processedFile) {
+  const handleDownload = (file: { path: string; name: string } | null) => {
+    if (file) {
       const link = document.createElement('a')
-      link.href = `http://localhost:3001${processedFile.path}`
-      link.download = processedFile.name
+      link.href = `http://localhost:3001${file.path}`
+      link.download = file.name
       document.body.appendChild(link)
       link.click()
       document.body.removeChild(link)
@@ -299,14 +346,12 @@ function HomePage() {
                 onCompress={handleCompress}
                 onDecompress={handleDecompress}
               />
-              {/* Compression Results - Show always in compress tab */}
               <CompressionResults {...compressionResults} />
-              {/* Download Output Section - Only show in compress tab */}
               <DownloadOutput
                 compressedFileName={processedFile ? processedFile.name : 'Output compressed file...'}
-                reconstructedFileName="Reconstructed audio..."
-                onCompressedDownload={processedFile ? handleDownload : undefined}
-                onReconstructedDownload={undefined}
+                reconstructedFileName={decompressedFile ? decompressedFile.name : 'Reconstructed audio...'}
+                onCompressedDownload={() => handleDownload(processedFile)}
+                onReconstructedDownload={() => handleDownload(decompressedFile)}
               />
             </>
           ) : (
@@ -315,6 +360,8 @@ function HomePage() {
               isProcessing={isProcessing}
               onFileSelect={handleFileSelect}
               onDecompress={handleDecompress}
+              processedFile={decompressedFile}
+              onDownload={() => handleDownload(decompressedFile)}
             />
           )}
 
